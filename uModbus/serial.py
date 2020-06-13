@@ -12,7 +12,7 @@ class Serial:
 
     def __init__(self, uart_id, baudrate=9600, data_bits=8, stop_bits=1, parity=None, pins=None, ctrl_pin=None):
         self._uart = UART(uart_id, baudrate=baudrate, bits=data_bits, parity=parity, \
-                          stop=stop_bits, timeout_chars=2, pins=pins)
+                          stop=stop_bits, timeout_char=2)
         if ctrl_pin is not None:
             self._ctrlPin = Pin(ctrl_pin, mode=Pin.OUT)
         else:
@@ -62,7 +62,7 @@ class Serial:
 
         for x in range(1, 40):
             if self._uart.any():
-                response.extend(self._uart.readall())
+                response.extend(self._uart.read())
                 # variable length function codes may require multiple reads
                 if self._exit_read(response):
                     break
@@ -74,10 +74,10 @@ class Serial:
         bytes = bytearray()
 
         start_ms = time.ticks_ms()
-        while timeout == None or time.ticks_diff(start_ms, time.ticks_ms()) <= timeout:
+        while timeout == None or time.ticks_diff(time.ticks_ms(), start_ms) <= timeout:
             last_byte_ts = time.ticks_us()
-            while time.ticks_diff(last_byte_ts, time.ticks_us()) <= self._t35chars:
-                r = self._uart.readall()
+            while time.ticks_diff(time.ticks_us(), last_byte_ts) <= self._t35chars:
+                r = self._uart.read()
                 if r != None:
                     bytes.extend(r)
                     last_byte_ts = time.ticks_us()
@@ -214,17 +214,20 @@ class Serial:
 
         if req[0] not in unit_addr_list:
             return None
-
+        
         req_crc = req[-Const.CRC_LENGTH:]
         req_no_crc = req[:-Const.CRC_LENGTH]
         expected_crc = self._calculate_crc16(req_no_crc)
         if (req_crc[0] != expected_crc[0]) or (req_crc[1] != expected_crc[1]):
+            print("crc exp {:2x} {:2x}".format(expected_crc[0],expected_crc[1]))
+            print("crc rx {:2x} {:2x}".format(req_crc[0],req_crc[1]))
             return None
 
         try:
             request = Request(self, req_no_crc)
         except ModbusException as e:
             self.send_exception_response(req[0], e.function_code, e.exception_code)
+            print("not support: funcode %x, excepCode %x"%(e.function_code, e.exception_code))
             return None
 
         return request
