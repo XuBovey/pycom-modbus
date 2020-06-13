@@ -4,6 +4,14 @@ from uModBus.serial import Serial
 from uModBus.common import Request
 import uModBus.const as Const
 
+######################## DS18B20  #############################
+from machine import Pin
+from ds18x20 import DS18X20
+
+ds=DS18X20(Pin('Y10'))
+print(ds.read_temp())
+
+
 ######################## WORK AS SLAVE  #############################
 slave_addr_list = [0x0A,0x0B]
 
